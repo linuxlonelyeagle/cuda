@@ -1,2 +1,2 @@
-# cuda
-cuda programming.
+# purpose
+Store the cuda code I wrote.
