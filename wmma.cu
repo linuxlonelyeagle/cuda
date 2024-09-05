@@ -11,7 +11,7 @@ __global__ void wmma_ker(half *a, half *b, float *c) {
 
   // Initialize the output to zero
   wmma::fill_fragment(c_frag, 0.0f);
-
+ 
    // Load the inputs
    // 16 is the leading dimension 
   wmma::load_matrix_sync(a_frag, a, 16);
@@ -24,7 +24,7 @@ __global__ void wmma_ker(half *a, half *b, float *c) {
   wmma::store_matrix_sync(c, c_frag, 16, wmma::mem_row_major);
 }
 
-int main(){
+int main() {
   half *d_a, *h_a, *d_b, *h_b;
   float *d_c, *h_c;
   h_c = new float[16*16];
@@ -37,7 +37,6 @@ int main(){
     h_a[i] = 1.0f;
     h_b[i] = 1.0f;
   }
-
   cudaMemcpy(d_a, h_a, 16*16*sizeof(half), cudaMemcpyHostToDevice);
   cudaMemcpy(d_b, h_b, 16*16*sizeof(half), cudaMemcpyHostToDevice);
   wmma_ker<<<1,32>>>(d_a, d_b, d_c);
