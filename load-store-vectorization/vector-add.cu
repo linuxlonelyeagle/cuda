@@ -39,7 +39,7 @@ __global__ void vector_add_vectorial(float* x, float* y, float *z, int N) {
 }
 
 int main(){
-    size_t size = 1 << 10;
+    size_t size = 1 << 27;
     size_t blockSize = 512;
     size_t bytes = sizeof(float) * size;
 
