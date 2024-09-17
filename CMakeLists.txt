@@ -10,3 +10,5 @@ add_executable(add-inline-asm add-inline-asm.cu)
 add_executable(wmma wmma.cu)
 add_executable(ldmatrix ldmatrix.cu)
 add_executable(mma mma.cu)
+
+add_subdirectory(load-store-vectorization)
