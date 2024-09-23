@@ -36,6 +36,7 @@ int main(int argc, char* argv[]) {
   cudaMemcpy(d_b, h_b, bytes, cudaMemcpyHostToDevice);
   int dimx = 32;
   int dimy = 32;
+  {
     dim3 block(dimx, dimy);
     dim3 grid((nx + dimx - 1) / dimx, (ny + dimy -1) / dimy);
     cudaEventRecord(start);
@@ -43,10 +44,43 @@ int main(int argc, char* argv[]) {
       sumMatrix<<<grid, block>>>(d_a, d_b, d_c, nx, ny);
     }
     cudaEventRecord(stop);
+    cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost);
     cudaEventElapsedTime(&msec, start, stop);
-    cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost);  
-    printf("sumMatrix takes %f msec\n", msec);
+    printf("dimx = %d, dimy = %d\n", dimx, dimy);
+    printf("sumMatrix takes %f msec\n", msec / 100);
+  }
 
+  {
+    dimx = 32;
+    dimy = 16;
+    dim3 block(dimx, dimy);
+    dim3 grid((nx + dimx - 1) / dimx, (ny + dimy - 1) / dimy);
+    cudaEventRecord(start);
+    for (int i = 0; i < 100; ++i) {
+      sumMatrix<<<grid, block>>>(d_a, d_b, d_c, nx, ny);
+    }
+    cudaEventRecord(stop);
+    cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost);
+    cudaEventElapsedTime(&msec, start, stop);
+    printf("dimx = %d, dimy = %d\n", dimx, dimy);
+    printf("sumMatrix takes %f msec\n", msec / 100);
+  }
+
+  {
+    dimx = 16;
+    dimy = 16;
+    dim3 block(dimx, dimy);
+    dim3 grid((nx + dimx - 1) / dimx, (ny + dimy - 1) / dimy);
+    cudaEventRecord(start);
+    for (int i = 0; i < 100; ++i) {
+      sumMatrix<<<grid, block>>>(d_a, d_b, d_c, nx, ny);
+    }
+    cudaEventRecord(stop);
+    cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost);   
+    cudaEventElapsedTime(&msec, start, stop);
+    printf("dimx = %d, dimy = %d\n", dimx, dimy);
+    printf("sumMatrix takes %f msec\n", msec / 100);
+  }
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
   cudaFree(d_a);
