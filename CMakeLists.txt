@@ -12,3 +12,4 @@ add_executable(ldmatrix ldmatrix.cu)
 add_executable(mma mma.cu)
 
 add_subdirectory(load-store-vectorization)
+add_subdirectory(sumMatrix)
