@@ -13,3 +13,4 @@ add_executable(mma mma.cu)
 
 add_subdirectory(load-store-vectorization)
 add_subdirectory(sumMatrix)
+add_subdirectory(transpose)
