@@ -102,6 +102,93 @@ __device__ void warpReduce(volatile int* shareData, int tid) {
   shareData[tid] += shareData[tid + 1];
 }
 
+/*
+__global__ void reduceUnrollWarp8(int * g_idata,int * g_odata,unsigned int n)
+{
+	//set thread ID
+	unsigned int tid = threadIdx.x;
+	unsigned int idx = blockDim.x*blockIdx.x*8+threadIdx.x;
+	//convert global data pointer to the
+	int *idata = g_idata + blockIdx.x*blockDim.x*8;
+	//unrolling 8;
+	if(idx+7 * blockDim.x<n)
+	{
+		int a1=g_idata[idx];
+		int a2=g_idata[idx+blockDim.x];
+		int a3=g_idata[idx+2*blockDim.x];
+		int a4=g_idata[idx+3*blockDim.x];
+		int a5=g_idata[idx+4*blockDim.x];
+		int a6=g_idata[idx+5*blockDim.x];
+		int a7=g_idata[idx+6*blockDim.x];
+		int a8=g_idata[idx+7*blockDim.x];
+		g_idata[idx]=a1+a2+a3+a4+a5+a6+a7+a8;
+
+	}
+	__syncthreads();
+	//in-place reduction in global memory
+	for (int stride = blockDim.x/2; stride>32; stride >>=1)
+	{
+		if (tid <stride)
+		{
+			idata[tid] += idata[tid + stride];
+		}
+		//synchronize within block
+		__syncthreads();
+	}
+	//write result for this block to global mem
+	if(tid<32)
+	{
+		volatile int *vmem = idata;
+		vmem[tid]+=vmem[tid+32];
+		vmem[tid]+=vmem[tid+16];
+		vmem[tid]+=vmem[tid+8];
+		vmem[tid]+=vmem[tid+4];
+		vmem[tid]+=vmem[tid+2];
+		vmem[tid]+=vmem[tid+1];
+
+	}
+
+	if (tid == 0)
+		g_odata[blockIdx.x] = 1;
+
+}
+
+__global__ void reduceUnrollWarp18 (int* gIdata, int* gOdata, unsigned int n) {
+  unsigned int tid = threadIdx.x;
+  unsigned int idx = blockIdx.x * blockDim.x * 8 + threadIdx.x;
+  int* idata = blockIdx.x * blockDim.x * 8 + gIdata;
+  // unrolling 8
+  if (idx + 7 * blockDim.x < n) {
+    int a = idata[idx];
+    int b = idata[idx +     blockDim.x];
+    int c = idata[idx + 2 * blockDim.x];
+    int d = idata[idx + 3 * blockDim.x];
+    int e = idata[idx + 4 * blockDim.x];
+    int f = idata[idx + 5 * blockDim.x];
+    int g = idata[idx + 6 * blockDim.x];
+    int h = idata[idx + 7 * blockDim.x];
+    gIdata[idx] = a + b + c + d + e + f + g + h;
+  }
+  __syncthreads();
+  for (int stride = blockDim.x / 2; stride > 32; stride >>= 1) {
+    if (tid < stride)
+      idata[tid] += idata[tid + stride];
+    __syncthreads();
+  }
+  if (tid < 32) {
+    volatile int *vmem = idata;
+    vmem[tid] += vmem[tid + 32];
+    vmem[tid] += vmem[tid + 16];
+    vmem[tid] += vmem[tid + 8];
+    vmem[tid] += vmem[tid + 4];
+    vmem[tid] += vmem[tid + 2];
+    vmem[tid] += vmem[tid + 1];
+  }
+  if (tid == 0) {
+    gOdata[blockIdx.x] = idata[0];
+  }
+}
+*/
 // Unrolling the Last Warp
 __global__ void reduce4(int *globalInput, int* globalOutput, size_t size) {
   extern __shared__ int shareData[];
@@ -125,6 +212,104 @@ __global__ void reduce4(int *globalInput, int* globalOutput, size_t size) {
     globalOutput[blockIdx.x] = shareData[0];
 }
 
+__global__ void reduceGmem(int *g_idata, int *g_odata, unsigned int n) {
+  unsigned tid = threadIdx.x;
+  int* idata = g_idata + blockDim.x * blockIdx.x;
+  unsigned idx = blockDim.x * blockIdx.x + threadIdx.x;
+  if (idx < n)
+    return;
+  if (blockDim.x >= 1024 && tid < 512)
+    idata[tid] = idata[tid] + idata[tid + 512];
+  __syncthreads();
+  if (blockDim.x >= 512 && tid < 256)
+    idata[tid] = idata[tid] + idata[tid + 256];
+  __syncthreads();
+  if (blockDim.x >= 256 && tid < 128)
+    idata[tid] = idata[tid] + idata[tid + 128];
+  if (blockDim.x >= 128 && tid < 64)
+    idata[tid] = idata[tid] + idata[tid + 64];
+  if (tid < 32) {
+    volatile int* tmp = idata;
+    tmp[tid] = tmp[tid] + tmp[tid + 32];
+    tmp[tid] = tmp[tid] + tmp[tid + 16];
+    tmp[tid] = tmp[tid] + tmp[tid + 8];
+    tmp[tid] = tmp[tid] + tmp[tid + 4];
+    tmp[tid] = tmp[tid] + tmp[tid + 2];
+    tmp[tid] = tmp[tid] + tmp[tid + 1];
+  }
+  if (tid == 0)
+    g_odata[blockIdx.x] = idata[0];
+}
+
+__global__ void reduceSmem(int *g_idata, int *g_odata, unsigned int n) {
+  unsigned tid = threadIdx.x;
+  int* idata = g_idata + blockDim.x * blockIdx.x;
+  unsigned idx = blockDim.x * blockIdx.x + threadIdx.x;
+  extern __shared__ int share[];
+  share[tid] = idata[tid];
+  __syncthreads();
+  if (idx < n)
+    return;
+  if (blockDim.x >= 1024 && tid < 512)
+    share[tid] = share[tid] + share[tid + 512];
+  __syncthreads();
+  if (blockDim.x >= 512 && tid < 256)
+    share[tid] = share[tid] + share[tid + 256];
+  __syncthreads();
+  if (blockDim.x >= 256 && tid < 128)
+    share[tid] = share[tid] + share[tid + 128];
+  if (blockDim.x >= 128 && tid < 64)
+    share[tid] = share[tid] + share[tid + 64];
+  if (tid < 32) {
+    volatile int* tmp = share;
+    tmp[tid] = tmp[tid] + tmp[tid + 32];
+    tmp[tid] = tmp[tid] + tmp[tid + 16];
+    tmp[tid] = tmp[tid] + tmp[tid + 8];
+    tmp[tid] = tmp[tid] + tmp[tid + 4];
+    tmp[tid] = tmp[tid] + tmp[tid + 2];
+    tmp[tid] = tmp[tid] + tmp[tid + 1];
+  }
+  if (tid == 0)
+    g_odata[blockIdx.x] = share[0];
+}
+
+__global__ void reduceSmemUnroll(int* g_idata, int* g_odata, unsigned int n) {
+  unsigned tid = threadIdx.x;
+  unsigned idx = blockDim.x * blockIdx.x * 4 + threadIdx.x;
+  extern __shared__ int share[];
+  int t = 0;
+  if (idx + 3 * blockDim.x <= n) {
+    int a = g_idata[idx];
+    int b = g_idata[idx + blockDim.x];
+    int c = g_idata[idx + 2 * blockDim.x];
+    int d = g_idata[idx + 3 * blockDim.x];
+    t = a + b + c + d;
+  }
+  share[tid] = t;
+  __syncthreads();
+  if (blockDim.x >= 1024 && tid < 512)
+    share[tid] = share[tid] + share[tid + 512];
+  __syncthreads();
+  if (blockDim.x >= 512 && tid < 256)
+    share[tid] = share[tid] + share[tid + 256];
+  __syncthreads();
+  if (blockDim.x >= 256 && tid < 128)
+    share[tid] = share[tid] + share[tid + 128];
+  if (blockDim.x >= 128 && tid < 64)
+    share[tid] = share[tid] + share[tid + 64];
+  if (tid < 32) {
+    volatile int* tmp = share;
+    tmp[tid] = tmp[tid] + tmp[tid + 32];
+    tmp[tid] = tmp[tid] + tmp[tid + 16];
+    tmp[tid] = tmp[tid] + tmp[tid + 8];
+    tmp[tid] = tmp[tid] + tmp[tid + 4];
+    tmp[tid] = tmp[tid] + tmp[tid + 2];
+    tmp[tid] = tmp[tid] + tmp[tid + 1];
+  }
+  if (tid == 0)
+    g_odata[blockIdx.x] = share[0];
+}
+
 int main(int argc, char* argv[]) {
   int size = 1 << 24;
   cout << "array size: " << size << endl;
@@ -133,7 +318,7 @@ int main(int argc, char* argv[]) {
     blockSize = atoi(argv[1]);
   }
   dim3 block(blockSize, 1);
-  dim3 grid((size - 1) / block.x + 1, 1);
+  dim3 grid((size + block.x - 1) / block.x, 1);
   cout << "grid: " << grid.x << endl;
   cout << "block:" << block.x << endl;
 
@@ -198,5 +383,46 @@ int main(int argc, char* argv[]) {
   cout << "reduce4: " << end << endl;
   cudaMemcpy(outputDataHost, outputDataDevice, grid.x * sizeof(int), cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();
+  /*
+  cudaFree(outputDataDevice);
+  
+  // test reduceUnrollWarp8
+  // size = 1024 
+  cudaMalloc(&outputDataDevice, (grid.x / 8 * sizeof(int)));
+  start = cpuSecond();
+  reduceUnrollWarp8<<<grid.x / 8, block>>>(inputDataDevice, outputDataDevice, size);
+  end = cpuSecond() - start;
+  cudaMemcpy(outputDataHost, outputDataDevice, grid.x / 8 * sizeof(int), cudaMemcpyDeviceToHost);
+  cout << "reduceUnrollWarp8: " << end << endl;
+  
+  for (int i = 0; i < grid.x / 8; ++i) {
+    cout << outputDataHost[i] << " ";
+  }
+  */
+
+  // test reduceGmem
+  start = cpuSecond();
+  reduceGmem<<<grid, block>>>(inputDataDevice, outputDataDevice, size);
+  end = cpuSecond() - start;
+  cout << "reduceGmem: " << end << endl;
+  cudaMemcpy(outputDataHost, outputDataDevice, grid.x * sizeof(int), cudaMemcpyDeviceToHost);
+
+  // test reduceSmem
+  start = cpuSecond();
+  reduceSmem<<<grid, block, block.x * sizeof(int)>>>(inputDataDevice, outputDataDevice, size);
+  end = cpuSecond() - start;
+  cout << "reduceSmem: " << end << endl;
+  cudaMemcpy(outputDataHost, outputDataDevice, grid.x * sizeof(int), cudaMemcpyDeviceToHost);
+  
+  // test reduceSmemUnroll
+  start = cpuSecond();
+  reduceSmemUnroll<<<grid.x / 4, block, block.x * sizeof(int)>>>(inputDataDevice, outputDataDevice, size);
+  end = cpuSecond() - start;
+  cout << "reduceSmemUnroll: " << end << endl;
+  cudaMemcpy(outputDataHost, outputDataDevice, grid.x * sizeof(int), cudaMemcpyDeviceToHost);
+  free(inputDataHost);
+  free(outputDataHost);
+  cudaFree(inputDataDevice);
+  cudaFree(outputDataDevice);
   return 0;
 }
