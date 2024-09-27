@@ -3,7 +3,6 @@ Store the cuda code I wrote.
 ## compile
 ```
 $ mkdir build && cd build 
-$ cmake .. -GNinja
+$ cmake .. -GNinja -DCUTLASS=$CUTLASS_PATH
 $ ninja
 ```
-
