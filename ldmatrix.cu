@@ -1,5 +1,6 @@
 #include <cuda_runtime.h>
 #include <iostream>
+#include <cstdint>
 
 // https://www.jianshu.com/p/c3c2f7d30eda
 // https://stackoverflow.com/questions/76992939/confusion-about-cvta-generic-to-shared

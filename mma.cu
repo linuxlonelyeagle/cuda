@@ -1,6 +1,7 @@
 #include <cuda_runtime.h>
 #include <iostream>
 #include <mma.h>
+#include <cstdint>
 
 // from https://github.com/Bruce-Lee-LY/cuda_hgemm
 using namespace std;
