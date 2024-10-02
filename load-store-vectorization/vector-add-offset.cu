@@ -5,9 +5,9 @@
 __global__ void add_vector(float* a, float* b, float* c, int n, int offset) {
   size_t idx = blockDim.x * blockIdx.x + threadIdx.x;
   size_t k = idx + offset;
-  if (idx < n || k < n)
+  if (idx < n)
     return;
-  c[n] = a[k] + b[k];
+  c[k] = a[k] + b[k];
 }
 
 int main(int argc, char *argv[]) {
@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
   if (argc == 2)
     offset = atoi(argv[1]);
 
-  size_t size = 1 << 14;
+  size_t size = 1 << 16;
   size_t bytes = size * sizeof(float);
   size_t block = 512;
   float* h_a =(float*)malloc(bytes);
