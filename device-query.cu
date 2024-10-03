@@ -17,5 +17,10 @@ int main(int argc, char* argv[]) {
   cout << "Total shared memory per multiprocessor: " << deviceProp.sharedMemPerMultiprocessor << " bytes" << endl;
   cout << "Total shared memory per multiprocessor: " << deviceProp.sharedMemPerMultiprocessor / 1024 << " KB" << endl;
   cout << "warp size: " << deviceProp.warpSize << endl;
+  cout << "Max number of threads per SM: " << deviceProp.maxThreadsPerMultiProcessor << endl;
+  cout << "Max number of threads per block: " << deviceProp.maxThreadsPerBlock << endl;
+  cout << "Max number of warps per SM: " << deviceProp.maxThreadsPerMultiProcessor / deviceProp.warpSize << endl;
+  cout << "Max number of warps per block: " << deviceProp.maxThreadsPerBlock / deviceProp.warpSize << endl;
+  
   return 0;
 }
