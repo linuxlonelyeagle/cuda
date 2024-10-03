@@ -8,7 +8,7 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 
-#define FLOAT4(value)  *(float4*)(&(value))
+#define FLOAT4(ptr) ((float4*)ptr)
 
 #define checkCudaErrors(func)               \
 {                                   \
@@ -25,16 +25,16 @@ __global__ void vector_add(float* x, float* y, float* z, int N) {
 }
 
 __global__ void vector_add_vectorial(float* x, float* y, float *z, int N) {
-  int idx = (blockDim.x * blockIdx.x + threadIdx.x) * 4;
+  int idx = (blockDim.x * blockIdx.x + threadIdx.x);
   if (idx < N) {
-    float4 xTmp = FLOAT4(x[idx]);
-    float4 yTmp = FLOAT4(y[idx]);
+    float4 xTmp = FLOAT4(x)[idx];
+    float4 yTmp = FLOAT4(y)[idx];
     float4 zTmp;
     zTmp.x = xTmp.x + yTmp.x;
     zTmp.y = xTmp.y + yTmp.y;
     zTmp.z = xTmp.z + yTmp.z;
     zTmp.w = xTmp.w + xTmp.w;
-    FLOAT4(z[idx]) = zTmp;
+    FLOAT4(z)[idx] = zTmp;
   }
 }
 

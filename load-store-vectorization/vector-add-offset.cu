@@ -2,7 +2,7 @@
 #include <cuda_runtime.h>
 #include <stdlib.h>
 
-#define FLOAT4(value)  *(float4*)(&(value))
+#define FLOAT4(ptr) (float4*)ptr
 
 __global__ void add_vector_base(float* a, float* b, float* c, int n) {
   size_t idx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -22,17 +22,16 @@ __global__ void add_vector_offset(float* a, float* b, float* c, int n, int offse
 
 __global__ void add_vector_float4(float* a, float* b, float* c, int n, int offset) {
   size_t idx = blockDim.x * blockIdx.x + threadIdx.x;
-  size_t k = idx * 4;
-  if (k > n)
+  if (idx > n)
     return;
-  float4 tmpA = FLOAT4(a[k]);
-  float4 tmpB = FLOAT4(b[k]);
+  float4 tmpA = (FLOAT4(a))[idx];
+  float4 tmpB = (FLOAT4(b))[idx];
   float4 tmp;
   tmp.x = tmpA.x + tmpB.x;
   tmp.y = tmpA.y + tmpB.y;
   tmp.z = tmpA.z + tmpB.z;
   tmp.w = tmpA.w + tmpB.w;
-  FLOAT4(a[k]) = tmp;
+  (FLOAT4(c))[idx] = tmp;
 }
 
 int main(int argc, char *argv[]) {
@@ -40,7 +39,7 @@ int main(int argc, char *argv[]) {
   if (argc == 2)
     offset = atoi(argv[1]);
 
-  size_t size = 1 << 16;
+  size_t size = 1 << 27;
   size_t bytes = size * sizeof(float);
   size_t block = 512;
   cudaEvent_t start, stop;
